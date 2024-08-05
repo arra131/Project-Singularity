@@ -34,7 +34,7 @@ class TSCorpusBuilderConfig(datasets.BuilderConfig):
 class TSCorpus(datasets.GeneratorBasedBuilder):
     kaggle.api.authenticate()
     name = 'kandij/electric-production'
-    dest = 'D:\Master Thesis\Code'
+    dest = './tmp'
     kaggle.api.dataset_download_files(name, path=dest, unzip=True)
     VERSION = datasets.Version('1.0.0')
     BUILDER_CONFIG_CLASS = TSCorpusBuilderConfig
@@ -44,7 +44,7 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             version=VERSION,
             description="univariate data on electricity production",
             url=None,
-            file_name="Electric_Production.csv",
+            file_name="./tmp/Electric_Production.csv",
         )
     ]
 
