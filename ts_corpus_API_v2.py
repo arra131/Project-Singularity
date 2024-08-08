@@ -67,6 +67,8 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
     def _generate_examples(self, filepath):
         df = pd.read_csv(filepath)
         
+        df['DATE'] = pd.to_datetime(df['DATE']).dt.strftime('%Y-%m-%d %H:%M:%S')
+
         dates = df['DATE']
         values = df['Value']
         
