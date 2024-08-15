@@ -72,15 +72,21 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
         dates = df['DATE']
         values = df['Value']
         
+        # Convert values to a list of lists
+        values = [values.tolist()]
+    
+        # Convert dates to a list
+        dates = dates.tolist()
+
         # data as a single row
         yield 0, {
             "date": dates,
             "value": values
         }
-
+        
 if __name__ == "__main__":
     from datasets import load_dataset
     first_dataset = load_dataset('ts_corpus_API_v2.py', name="Time series analysis", trust_remote_code=True)
     # print(first_dataset)
 
-    print(first_dataset['train'][:1])
+    print(first_dataset['train'][0])
