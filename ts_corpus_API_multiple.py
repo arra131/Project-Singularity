@@ -104,6 +104,6 @@ if __name__ == "__main__":
     datasets_to_load = ["Electric Production", "Air Passengers"]
     
     for dataset_name in datasets_to_load:
-        dataset = load_dataset('ts_corpus_API_test.py', name=dataset_name, trust_remote_code=True)
+        dataset = load_dataset('ts_corpus_API_multiple.py', name=dataset_name, trust_remote_code=True)
         print(f"Dataset {dataset_name}:")
         print(dataset['train'])
