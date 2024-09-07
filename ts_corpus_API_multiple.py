@@ -38,6 +38,34 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             description="univariate data on air passengers",
             kaggle_dataset_name="rakannimer/air-passengers",
             file_name="./tmp/air_passengers/AirPassengers.csv",
+        ),
+        TSCorpusBuilderConfig(
+            name="Train Count",
+            version=_VERSION,
+            description="univariate data on hourly train count",
+            kaggle_dataset_name="wolfmedal/time-series-notes-data-set",
+            file_name="./tmp/time_series_notes/Train_SU63ISt.csv",
+        ),
+        TSCorpusBuilderConfig(
+            name="Ad Interval",
+            version=_VERSION,
+            description="Hourly interval of Ads",
+            kaggle_dataset_name="wolfmedal/time-series-notes-data-set",
+            file_name="./tmp/time_series_notes/ads.csv",
+        ),
+        TSCorpusBuilderConfig(
+            name="Currency",
+            version=_VERSION,
+            description="Daily expenditure of virtual currency",
+            kaggle_dataset_name="wolfmedal/time-series-notes-data-set",
+            file_name="./tmp/time_series_notes/currency.csv",
+        ),
+        TSCorpusBuilderConfig(
+            name="Air Temperature",
+            version=_VERSION,
+            description="Hourly room air temperature",
+            kaggle_dataset_name="vitthalmadane/ts-temp-1",
+            file_name="./tmp/ts-temp-1/MLTempDataset1.csv",
         )
     ]
 
@@ -82,6 +110,22 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             df['Month'] = pd.to_datetime(df['Month']).dt.strftime('%Y-%m-%d %H:%M:%S')
             dates = df['Month']
             values = df['#Passengers']
+        elif 'Datetime' in df.columns and 'Count' in df.columns:
+            df['Datetime'] = pd.to_datetime(df["Datetime"], dayfirst=True).dt.strftime('%Y-%m-%d %H:%M:%S')
+            dates = df['Datetime']
+            values = df['Count']
+        elif 'Time' in df.columns and 'Ads' in df.columns:
+            df['Time'] = pd.to_datetime(df["Time"]).dt.strftime('%Y-%m-%d %H:%M:%S')
+            dates = df['Time']
+            values = df['Ads']
+        elif 'Time' in df.columns and 'GEMS_GEMS_SPENT' in df.columns:
+            df['Time'] = pd.to_datetime(df["Time"], format='%m/%d/%y').dt.strftime('%Y-%m-%d %H:%M:%S')
+            dates = df['Time']
+            values = df['GEMS_GEMS_SPENT']
+        elif 'Datetime' in df.columns and 'Hourly_Temp' in df.columns:
+            df['Datetime'] = pd.to_datetime(df["Datetime"]).dt.strftime('%Y-%m-%d %H:%M:%S')
+            dates = df['Datetime']
+            values = df['Hourly_Temp']
         else:
             raise ValueError("Unexpected column names in the dataset")
 
@@ -101,9 +145,11 @@ if __name__ == "__main__":
     from datasets import load_dataset
 
     # Load each dataset
-    datasets_to_load = ["Electric Production", "Air Passengers"]
+    datasets_to_load = ["Electric Production", "Air Passengers", "Train Count", "Ad Interval", "Currency", "Air Temperature"]
     
+    print(datasets_to_load)
+
     for dataset_name in datasets_to_load:
-        dataset = load_dataset('ts_corpus_API_test.py', name=dataset_name, trust_remote_code=True)
-        print(f"Dataset {dataset_name}:")
+        dataset = load_dataset('ts_corpus_API_multiple.py', name=dataset_name, trust_remote_code=True)
+        print(dataset)
         print(dataset['train'])
