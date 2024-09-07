@@ -151,5 +151,5 @@ if __name__ == "__main__":
 
     for dataset_name in datasets_to_load:
         dataset = load_dataset('ts_corpus_API_multiple.py', name=dataset_name, trust_remote_code=True)
-        print(dataset)
+        print(f"Dataset {dataset_name}:")
         print(dataset['train'])
