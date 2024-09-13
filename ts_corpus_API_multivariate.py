@@ -75,6 +75,13 @@ def main():
             "target_columns": ["NA000334Q"]
         },
         {
+            "kaggle_dataset_name": "vitthalmadane/ts-temp-1",
+            "file_name": "MLTempDataset1.csv",
+            "date_column": "Datetime",
+            "multivariate": False, 
+            "target_columns": ["Hourly_Temp"]
+        },
+        {
             "kaggle_dataset_name": "arashnic/time-series-forecasting-with-yahoo-stock-price",
             "file_name": "yahoo_stock.csv",
             "date_column": "Date",
@@ -104,9 +111,9 @@ def main():
             )
 
             # Print the first record for each dataset as a sample
-            print(f"Dataset from {config['kaggle_dataset_name']} - First Record:")
-            print("Date:", dataset['date'][0:3])  # Display first 3 dates
-            print("Values:", dataset['value'][0:3])  # Display first 3 values
+            print(f"Dataset from {config['kaggle_dataset_name']}")
+            print("Date:", dataset['date'])  
+            print("Values:", dataset['value'])  
 
         except Exception as e:
             print(f"Error processing {config['kaggle_dataset_name']}: {e}")
