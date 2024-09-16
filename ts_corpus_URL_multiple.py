@@ -37,12 +37,11 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             data_column="validations_per_hour",  # specify the column for univariate data
             date_column="date",  # specify the date column
             multivariate=False
-        ),
-        TSCorpusBuilderConfig(
+        ),      
+		TSCorpusBuilderConfig(
             name="timeseries_trending_youtube_videos",
             version=VERSION,
-            description="timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15",
-            url="https://huggingface.co/datasets/jettisonthenet/timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15/resolve/main/videostats.csv",
+            description="timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15", url="https://huggingface.co/datasets/jettisonthenet/timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15/resolve/main/videostats.csv",
             file_name="./tmp/videostats.csv",
             target_fields=["likes", "dislikes", "views"],  # specify target fields for multivariate data
             date_column="timestamp",  # specify the date column
@@ -57,8 +56,8 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             target_fields=["Inflation_Rate", "visits"],  # specify target fields
             date_column="Date",  # specify the date column
             multivariate=True
-        ),
-        TSCorpusBuilderConfig(
+        ),     
+		TSCorpusBuilderConfig(
             name="Controlled anomalies time series",
             version=VERSION,
             description="Multivariate dataset with columns arnd, bso1, and cso1",
@@ -117,37 +116,45 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
     def _generate_examples(self, filepath):
         df = pd.read_csv(filepath)
 
-        # Handle both univariate and multivariate data
+        # Extract date values
+        if self.config.date_column and self.config.date_column in df.columns:
+            df[self.config.date_column] = pd.to_datetime(df[self.config.date_column]).dt.strftime('%Y-%m-%d %H:%M:%S')
+            dates = df[self.config.date_column].tolist()
+        else:
+            raise ValueError(f"Specified date column '{self.config.date_column}' not found in the dataset.")
+        
+        # Extract values for target fields or data column
         if self.config.multivariate or self.config.target_fields:
-            # Use the date_column specified in the configuration
-            if self.config.date_column and self.config.date_column in df.columns:
-                df[self.config.date_column] = pd.to_datetime(df[self.config.date_column]).dt.strftime('%Y-%m-%d %H:%M:%S')
-                dates = df[self.config.date_column].tolist()
-            else:
-                raise ValueError(f"Specified date column '{self.config.date_column}' not found in the dataset.")
-            
-            # Use target_fields for data
+            # Collect values for each target field separately
             values = [df[field].tolist() for field in self.config.target_fields]
         else:
-            # Handle univariate data if `data_column` is set
+            # Handle univariate data
             if self.config.data_column and self.config.data_column in df.columns:
-                df[self.config.data_column] = pd.to_datetime(df[self.config.data_column]).dt.strftime('%Y-%m-%d %H:%M:%S')
-                dates = df[self.config.data_column].tolist()
-                values = [df[self.config.data_column].tolist()]
+                values = [df[self.config.data_column].tolist()]  # Wrap in a list to keep it consistent
             else:
                 raise ValueError(f"Specified data column '{self.config.data_column}' not found in the dataset.")
 
-        # Yield the result with values as a list of lists (one list per feature)
-        yield 0, {
+        # Prepare the final dictionary
+        result = {
             "date": dates,
-            "value": values
+            "value": values  # List of lists for each feature
         }
+
+        # Print the dictionary directly
+        #print(result)
+
+        # Yield the result as requested
+        yield 0, result
+
+
 
 if __name__ == "__main__":
     from datasets import load_dataset
-
     # Load all datasets
     for config in TSCorpus.BUILDER_CONFIGS:
         dataset = load_dataset('ts_corpus_URL_multiple.py', name=config.name, trust_remote_code=True)
         print(f"Dataset {config.name}:")
-        print(dataset['train'])
+        #print(dataset['train'][0])
+        df = pd.DataFrame(dataset['train'])
+        # Use to_string to print the entire DataFrame without truncation
+        print(df.to_string())
