@@ -89,4 +89,4 @@ if __name__ == "__main__":
     from datasets import load_dataset
     first_dataset = load_dataset('ts_corpus_URL.py', name="Bus route identification", trust_remote_code=True)
 
-    print(first_dataset['train'])
+    print(first_dataset['train'][0])

@@ -18,7 +18,7 @@ Create a folder in the root directory in order to save the API
 
 * Create an account on kaggle.com. 
 * Login to your account and go to settings.
-* Click on 'Create New API Token'. This will download a kaggle.json file with your username and API key. 
+* Click on Create New API Token``. This will download a kaggle.json file with your username and API key. 
 
 ## Step 4: Place the file in correct location
 
