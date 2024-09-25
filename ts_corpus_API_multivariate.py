@@ -1,7 +1,9 @@
+
 import os
 import pandas as pd
 from pathlib import Path
 import kaggle
+from tqdm import tqdm
 
 # Authenticate with Kaggle API
 kaggle.api.authenticate()
@@ -272,30 +274,34 @@ def main():
     # Directory where datasets will be downloaded
     download_dir = "./datasets"
 
-    # Process each dataset
-    for config in datasets_config:
-        try:
-            file_path = download_dataset(
-                kaggle_dataset_name=config['kaggle_dataset_name'],
-                file_name=config['file_name'],
-                download_path=download_dir
-            )
+    with tqdm(total=len(datasets_config), desc="Processing datasets", unit="dataset") as pbar:
 
-            # Process the dataset
-            dataset = process_dataset(
-                filepath=file_path,
-                date_column=config['date_column'],
-                multivariate=config['multivariate'],
-                target_columns=config['target_columns']
-            )
+        # Process each dataset
+        for config in datasets_config:
+            try:
+                file_path = download_dataset(                   
+                    kaggle_dataset_name=config['kaggle_dataset_name'],
+                    file_name=config['file_name'],
+                    download_path=download_dir
+                )
 
-            # Print the first record for each dataset as a sample
-            print(f"Dataset from {config['kaggle_dataset_name']}")
-            print("Date:", dataset['date'])  
-            print("Values:", dataset['value'])  
+                # Process the dataset
+                dataset = process_dataset(
+                    filepath=file_path,
+                    date_column=config['date_column'],
+                    multivariate=config['multivariate'],
+                    target_columns=config['target_columns']
+                )
 
-        except Exception as e:
-            print(f"Error processing {config['kaggle_dataset_name']}: {e}")
+                # Print the first record for each dataset as a sample
+                """print(f"Dataset from {config['kaggle_dataset_name']}")
+                print("Date:", dataset['date'])  
+                print("Values:", dataset['value']) """ 
+
+            except Exception as e:
+                print(f"Error processing {config['kaggle_dataset_name']}: {e}")
+            pbar.update(1)
+
 
 if __name__ == "__main__":
     main()
