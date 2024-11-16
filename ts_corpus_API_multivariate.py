@@ -1,307 +1,146 @@
-
-import os
-import pandas as pd
+from dataclasses import dataclass
 from pathlib import Path
-import kaggle
-from tqdm import tqdm
-
-# Authenticate with Kaggle API
-kaggle.api.authenticate()
-
-def download_dataset(kaggle_dataset_name: str, file_name: str, download_path: str):
-    """Download a Kaggle dataset and return the file path."""
-    download_dir = Path(download_path)
-    
-    # Create the download directory if it doesn't exist
-    if not download_dir.exists():
-        os.makedirs(download_dir)
-    
-    # Download the dataset from Kaggle and unzip it
-    print(f"Downloading {kaggle_dataset_name} to {download_path}...")
-    kaggle.api.dataset_download_files(
-        dataset=kaggle_dataset_name, 
-        path=download_path, 
-        unzip=True  # Make sure to unzip the dataset
-    )
-
-    # Check if the file exists after downloading
-    file_path = str(download_dir / file_name)
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File '{file_name}' not found in the directory '{download_path}'")
-    
-    return file_path
-
+from typing import Dict, Optional, Any, List
 import pandas as pd
+import datasets
+import subprocess
+from tqdm import tqdm
+from huggingface_hub import hf_hub_download
 
-def process_dataset(filepath: str, date_column: str, multivariate: bool, target_columns: list):
-    """Process both univariate and multivariate datasets."""
-    # Read the dataset
-    df = pd.read_csv(filepath)
-    
-    # Ensure the date column exists
-    if date_column not in df.columns:
-        raise ValueError(f"Expected '{date_column}' column in the dataset.")
-    
-    # Convert the date column to standard format
-    def convert_date_format(date_str):
-        """Try different date formats."""
-        try:
-            # Convert the input to string first
-            date_str = str(date_str)
-            # Try full date format (MM/DD/YYYY)
-            return pd.to_datetime(date_str, format='%m/%d/%Y').strftime('%Y-%m-%d %H:%M:%S')
-        except ValueError:
-            try:
-                # Try format 'DD-MMM' assuming the current or default year
-                return pd.to_datetime(date_str + '-2023', format='%d-%b-%Y').strftime('%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                try:
-                    # Try year-only format (e.g., '2019')
-                    return pd.to_datetime(date_str, format='%Y').strftime('%Y-01-01 %H:%M:%S')
-                except ValueError:
-                    try:
-                        # Fallback: Parse other formats or ISO format
-                        return pd.to_datetime(date_str).strftime('%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        print(f"Unrecognized date format: {date_str}")
-                        return None
+_VERSION = "1.0.0"
+_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets"
+_CITATION = "Provide a suitable citation here"
 
-    # Apply the date conversion logic
-    df[date_column] = df[date_column].apply(convert_date_format)
+# Define the base directory for dataset downloads
+BASE_DIR = Path("./KaggleData")
+BASE_DIR.mkdir(parents=True, exist_ok=True)  # Ensure the base directory exists
 
-    # Drop rows with invalid dates
-    df = df.dropna(subset=[date_column])
-    
-    # Convert date column to list
-    dates = df[date_column].tolist()
+# Load dataset configuration from Hugging Face
+def load_datasets_config():
+    # Download the config_datasets.csv from the Hugging Face Hub
+    csv_file_path = hf_hub_download(repo_id="ddrg/kaggle-time-series-datasets", filename="kaggle_data_config.csv", repo_type="dataset")
+    config_df = pd.read_csv(csv_file_path, delimiter=';')
+    config_dict = {}
 
-    # Process multivariate or univariate data based on configuration
-    if multivariate:
-        # Multivariate: Ensure all columns exist
-        missing_columns = [col for col in target_columns if col not in df.columns]
-        if missing_columns:
-            raise ValueError(f"Missing columns in the dataset: {', '.join(missing_columns)}")
-        
-        # Extract multivariate values
-        values = [df[col].tolist() for col in target_columns]  # Each column forms a separate list
-    else:
-        # Univariate: Ensure target column exists
-        if target_columns[0] not in df.columns:
-            raise ValueError(f"Expected column '{target_columns[0]}' in the dataset for univariate processing.")
-        
-        # Extract univariate values (wrap in a list of lists for consistency)
-        values = [df[target_columns[0]].tolist()]
+    for _, row in config_df.iterrows():
+        # Create the file path within the BASE_DIR
+        file_path = BASE_DIR / Path(row['file_name']).name  # Ensure all files are saved to BASE_DIR
 
-    return {
-        "date": dates,
-        "value": values
-    }
+        data_columns = [col.strip() for col in row['data_column'].split(',')] if ',' in row['data_column'] else row['data_column'].strip()
+        multivariate = str(row['multivariate']).strip().upper() == 'TRUE'
 
-
-def main():
-    # Configuration for datasets
-    datasets_config = [
-        {
-            "kaggle_dataset_name": "kandij/electric-production",
-            "file_name": "Electric_Production.csv",
-            "date_column": "DATE",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["Value"]
-        },
-        {
-            "kaggle_dataset_name": "rakannimer/air-passengers",
-            "file_name": "AirPassengers.csv",
-            "date_column": "Month",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["#Passengers"]
-        },
-        {
-            "kaggle_dataset_name": "mukeshmanral/univariate-time-series",
-            "file_name": "date_count.csv",
-            "date_column": "Date",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["count"]
-        },
-        {
-            "kaggle_dataset_name": "arashnic/learn-time-series-forecasting-from-gold-price",
-            "file_name": "gold_price_data.csv",
-            "date_column": "Date",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["Value"]
-        },
-        {
-            "kaggle_dataset_name": "vikramamin/holt-winters-forecasting-for-sales-data",
-            "file_name": "MonthlySales.csv",
-            "date_column": "month",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["sales"]
-        },
-        {
-            "kaggle_dataset_name": "kapatsa/modelled-time-series",
-            "file_name": "GDPUS_nsa.csv",
-            "date_column": "DATE",
-            "multivariate": False,  # Univariate dataset
-            "target_columns": ["NA000334Q"]
-        },
-        {
-            "kaggle_dataset_name": "vitthalmadane/ts-temp-1",
-            "file_name": "MLTempDataset1.csv",
-            "date_column": "Datetime",
-            "multivariate": False, 
-            "target_columns": ["Hourly_Temp"]
-        },
-        {
-            "kaggle_dataset_name": "ranja7/electricity-consumption",
-            "file_name": "daily_consumption.csv",
-            "date_column": "Date",
-            "multivariate": False, 
-            "target_columns": ["Energy Consumption (kWh)"]
-        },
-        {
-            "kaggle_dataset_name": "prakharmkaushik/airline-passengers-tsa",
-            "file_name": "AirPassengers.csv",
-            "date_column": "Timeline",
-            "multivariate": False, 
-            "target_columns": ["Number_of_Passengers"]
-        },
-        {
-            "kaggle_dataset_name": "billykal/monthly-sunspots",
-            "file_name": "monthly-sunspots.csv",
-            "date_column": "Month",
-            "multivariate": False, 
-            "target_columns": ["Sunspots"]
-        },
-        {
-            "kaggle_dataset_name": "artemig/time-series-sample-001",
-            "file_name": "time_series_sample_001.csv",
-            "date_column": "timestamp",
-            "multivariate": False, 
-            "target_columns": ["value"]
-        },
-        {
-            "kaggle_dataset_name": "mohamedharris/customers-of-beauty-parlour-time-series",
-            "file_name": "Customers_Parlour.csv",
-            "date_column": "date",
-            "multivariate": False, 
-            "target_columns": ["Customers"]
-        },
-        {
-            "kaggle_dataset_name": "joebeachcapital/dow-jones-and-s-and-p500-indices-daily-update",
-            "file_name": "DJCA.csv",
-            "date_column": "DATE",
-            "multivariate": False, 
-            "target_columns": ["DJCA"]
-        },
-        {
-            "kaggle_dataset_name": "joebeachcapital/dow-jones-and-s-and-p500-indices-daily-update",
-            "file_name": "DJIA.csv",
-            "date_column": "DATE",
-            "multivariate": False, 
-            "target_columns": ["DJIA"]
-        },
-        {
-            "kaggle_dataset_name": "joebeachcapital/dow-jones-and-s-and-p500-indices-daily-update",
-            "file_name": "DJTA.csv",
-            "date_column": "DATE",
-            "multivariate": False, 
-            "target_columns": ["DJTA"]
-        },
-        {
-            "kaggle_dataset_name": "joebeachcapital/dow-jones-and-s-and-p500-indices-daily-update",
-            "file_name": "DJUA.csv",
-            "date_column": "DATE",
-            "multivariate": False, 
-            "target_columns": ["DJUA"]
-        },
-        {
-            "kaggle_dataset_name": "joebeachcapital/dow-jones-and-s-and-p500-indices-daily-update",
-            "file_name": "SP500.csv",
-            "date_column": "DATE",
-            "multivariate": False, 
-            "target_columns": ["SP500"]
-        },
-        {
-            "kaggle_dataset_name": "rassiem/monthly-car-sales",
-            "file_name": "monthly-car-sales.csv",
-            "date_column": "Month",
-            "multivariate": False, 
-            "target_columns": ["Sales"]
-        },
-        {
-            "kaggle_dataset_name": "jylim21/malaysia-public-data",
-            "file_name": "births.csv",
-            "date_column": "date",
-            "multivariate": False, 
-            "target_columns": ["births"]
-        },
-        {
-            "kaggle_dataset_name": "ankitkalauni/tps-jan22-google-trends-kaggle-search-dataset",
-            "file_name": "multiTimeline.csv",
-            "date_column": "Month",
-            "multivariate": False, 
-            "target_columns": ["kaggle"]
-        },
-        {
-            "kaggle_dataset_name": "ekayfabio/immigration-apprehended",
-            "file_name": "immigration_apprehended.csv",
-            "date_column": "Year",
-            "multivariate": False, 
-            "target_columns": ["Number"]
-        },
-        {
-            "kaggle_dataset_name": "gokcegok/falls-mortality-dataset",
-            "file_name": "falls_mortality__dataset.csv",
-            "date_column": "year",
-            "multivariate": False, 
-            "target_columns": ["death"]
-        },
-        {
-            "kaggle_dataset_name": "nekoslevin/spydataa",
-            "file_name": "SPYdata.csv",
-            "date_column": "Trade_date",
-            "multivariate": False, 
-            "target_columns": ["SPY"]
-        },
-        {
-            "kaggle_dataset_name": "arashnic/time-series-forecasting-with-yahoo-stock-price",
-            "file_name": "yahoo_stock.csv",
-            "date_column": "Date",
-            "multivariate": True,  # Multivariate dataset
-            "target_columns": ["High", "Open", "Close", "Low"]
+        config_dict[row['name'].strip()] = {
+            "kaggle_dataset": row['kaggle_dataset'].strip(),
+            "file_name": str(file_path),
+            "date_column": row['date_column'].strip(),
+            "data_column": data_columns,
+            "multivariate": multivariate
         }
+    return config_dict
+
+@dataclass
+class TimeSeriesDatasetConfig(datasets.BuilderConfig):
+    datasets_config: Optional[Dict[str, Dict[str, Any]]] = None
+
+class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
+    VERSION = datasets.Version(_VERSION)
+
+    # Load dataset configuration from the CSV file in the Hugging Face repository
+    BUILDER_CONFIGS = [
+        TimeSeriesDatasetConfig(
+            name="UNIVARIATE",
+            version=datasets.Version(_VERSION),
+            description="Multiple univariate datasets",
+            datasets_config=load_datasets_config()
+        )
     ]
+
+    def _info(self):
+        return datasets.DatasetInfo(
+            description=_DESCRIPTION,
+            citation=_CITATION,
+            version=self.VERSION
+        )
+
+    def _split_generators(self, dl_manager):
+        """Download all datasets and return the train split."""
+        downloaded_files = {}
     
-    # Directory where datasets will be downloaded
-    download_dir = "./datasets"
-
-    with tqdm(total=len(datasets_config), desc="Processing datasets", unit="dataset") as pbar:
-
-        # Process each dataset
-        for config in datasets_config:
+        for dataset_name, dataset_info in tqdm(self.config.datasets_config.items(), desc="Downloading datasets", unit="dataset"):
+            dest = Path(dataset_info["file_name"])
+            dest.parent.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+    
+            # Download the dataset using Kaggle API (without unzipping)
+            kaggle_command = f"kaggle datasets download -d {dataset_info['kaggle_dataset']} -p {dest.parent} --force --unzip"
             try:
-                file_path = download_dataset(                   
-                    kaggle_dataset_name=config['kaggle_dataset_name'],
-                    file_name=config['file_name'],
-                    download_path=download_dir
-                )
+                result = subprocess.run(kaggle_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                print(result.stdout.decode())  # Print the output of the download command
+                
+                # Check if CSV exists directly; if not, skip
+                if dest.with_suffix('.csv').exists():
+                    downloaded_files[dataset_name] = str(dest.with_suffix('.csv'))
+                    print(f"Successfully downloaded {dataset_name} to {dest.with_suffix('.csv')}.")
+                else:
+                    print(f"No CSV found for {dataset_name} at expected location: {dest.with_suffix('.csv')}")
+                    continue  # Skip if no CSV file found
 
-                # Process the dataset
-                dataset = process_dataset(
-                    filepath=file_path,
-                    date_column=config['date_column'],
-                    multivariate=config['multivariate'],
-                    target_columns=config['target_columns']
-                )
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to download {dataset_name}: {e}\n{e.stderr.decode()}")
+                continue  # Skip to the next dataset if download fails
+    
+        return [
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={"filepaths": downloaded_files}
+            )
+        ]
 
-                # Print the first record for each dataset as a sample
-                """print(f"Dataset from {config['kaggle_dataset_name']}")
-                print("Date:", dataset['date'])  
-                print("Values:", dataset['value']) """ 
+    def _generate_examples(self, filepaths):
+        """Generate examples in the requested format."""
+        all_datasets = []
+
+        for dataset_name, filepath in filepaths.items():
+            dataset_info = self.config.datasets_config[dataset_name]
+
+            try:
+                if Path(filepath).exists():
+                    df = pd.read_csv(filepath, on_bad_lines='skip')
+                else:
+                    print(f"File {filepath} does not exist.")
+                    continue
+
+                if dataset_info["date_column"] in df.columns:
+                    df[dataset_info["date_column"]] = pd.to_datetime(df[dataset_info["date_column"]]).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    dates = df[dataset_info["date_column"]].tolist()
+                else:
+                    raise ValueError(f"Specified date column '{dataset_info['date_column']}' not found in the dataset.")
+
+                data_columns = dataset_info["data_column"]
+                values = []
+
+                if isinstance(data_columns, list):
+                    for col in data_columns:
+                        if col in df.columns:
+                            values.append(df[col].tolist())
+                        else:
+                            raise ValueError(f"Specified data column '{col}' not found in the dataset.")
+                else:
+                    if data_columns in df.columns:
+                        values.append(df[data_columns].tolist())
+                    else:
+                        raise ValueError(f"Specified data column '{data_columns}' not found in the dataset.")
+
+                # Store the dataset information in the desired format
+                all_datasets.append({
+                    "name": dataset_name,
+                    "date": dates,
+                    "value": values  # Store values as a list of lists
+                })
 
             except Exception as e:
-                print(f"Error processing {config['kaggle_dataset_name']}: {e}")
-            pbar.update(1)
+                print(f"Error processing {dataset_name} ({filepath}): {e}")
+                continue
 
-
-if __name__ == "__main__":
-    main()
+        # Yield all datasets
+        for idx, data in enumerate(all_datasets):
+            yield idx, data
