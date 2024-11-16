@@ -1,157 +1,132 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
-import numpy as np
+from typing import Dict, Optional, Union, Any
 import pandas as pd
 import datasets
 import requests
+from tqdm import tqdm
+from huggingface_hub import hf_hub_download
 
 _VERSION = "1.0.0"
-_DESCRIPTION = "Time Series Corpus"
-_CITATION = "Suitable citation"
+_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets"
+_CITATION = "Provide a suitable citation here"
+
+# Use the exact filename and specify `repo_type="dataset"`
+def load_datasets_config():
+    # Specify repo_type="dataset" to ensure it looks in the dataset repository
+    csv_file_path = hf_hub_download(repo_id="ddrg/time-series-datasets", filename="config_datasets_URL.csv", repo_type="dataset")
+    config_df = pd.read_csv(csv_file_path, delimiter=';')  # Use semicolon as delimiter
+    config_dict = {}
+
+    for _, row in config_df.iterrows():
+        # Handle multivariate data columns by splitting on commas and stripping whitespace
+        data_columns = [col.strip() for col in row['data_column'].split(',')] if ',' in row['data_column'] else row['data_column'].strip()
+        multivariate = str(row['multivariate']).strip().upper() == 'TRUE'
+
+        config_dict[row['name'].strip()] = {
+            "url": row['url'].strip(),
+            "file_name": row['file_name'].strip(),
+            "date_column": row['date_column'].strip(),
+            "data_column": data_columns,
+            "multivariate": multivariate
+        }
+
+    return config_dict
+
 
 @dataclass
 class TSCorpusBuilderConfig(datasets.BuilderConfig):
-    file_name: Optional[str] = None                         # name of the dataset file
-    url: Optional[str] = None                               # source URL of the dataset
-    prediction_length: Optional[str] = None                 # length of prediction horizon
-    item_id_column: Optional[str] = None                    # column with unique identifiers
-    data_column: Optional[str] = None                       # column with actual time series data points
-    date_column: Optional[str] = None                       # column containing the date information
-    target_fields: Optional[List[str]] = None               # target variables for prediction
-    feat_dynamic_real_fields: Optional[List[str]] = None    # list of additional time varying features
-    multivariate: bool = False                              # univariate or multivariate
-    rolling_evaluations: int = 1    
+    datasets_config: Optional[Dict[str, Dict[str, Any]]] = None  # Dictionary to hold dataset information
 
 class TSCorpus(datasets.GeneratorBasedBuilder):
-    VERSION = datasets.Version('1.0.0')
-    BUILDER_CONFIG_CLASS = TSCorpusBuilderConfig
-    
+    VERSION = datasets.Version(_VERSION)
+
+    # Use CSV configuration loaded from Hugging Face
     BUILDER_CONFIGS = [
         TSCorpusBuilderConfig(
-            name="Bus route identification",
-            version=VERSION,
-            description="Univariate data on unique identification of bus routes",
-            url="https://zenodo.org/records/12665355/files/bus.csv?download=1",
-            file_name="./tmp/bus.csv",
-            data_column="validations_per_hour",  # specify the column for univariate data
-            date_column="date",  # specify the date column
-            multivariate=False
-        ),      
-		TSCorpusBuilderConfig(
-            name="timeseries_trending_youtube_videos",
-            version=VERSION,
-            description="timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15", url="https://huggingface.co/datasets/jettisonthenet/timeseries_trending_youtube_videos_2019-04-15_to_2020-04-15/resolve/main/videostats.csv",
-            file_name="./tmp/videostats.csv",
-            target_fields=["likes", "dislikes", "views"],  # specify target fields for multivariate data
-            date_column="timestamp",  # specify the date column
-            multivariate=True
-        ),
-        TSCorpusBuilderConfig(
-            name="Inflation and visits dataset",
-            version=VERSION,
-            description="Multivariate dataset on Inflation Rate and Visits",
-            url="https://huggingface.co/datasets/zaai-ai/time_series_datasets/resolve/main/data.csv",
-            file_name="./tmp/inflation_visits.csv",
-            target_fields=["Inflation_Rate", "visits"],  # specify target fields
-            date_column="Date",  # specify the date column
-            multivariate=True
-        ),     
-		TSCorpusBuilderConfig(
-            name="Controlled anomalies time series",
-            version=VERSION,
-            description="Multivariate dataset with columns arnd, bso1, and cso1",
-            url="https://huggingface.co/datasets/patrickfleith/controlled-anomalies-time-series-dataset/resolve/main/data.csv",
-            file_name="./tmp/controlled_anomalies.csv",
-            target_fields=["arnd", "bso1", "cso1"],  # specify the target fields for multivariate data
-            date_column="timestamp",  # specify the date column
-            multivariate=True
-        ),
-        TSCorpusBuilderConfig(
-            name="Dynamical System",
-            version=VERSION,
-            description="Dynamical System Multivariate Time Series",
-            url="https://zenodo.org/records/11526904/files/data.csv?download=1",
-            file_name="./tmp/data.csv",
-            target_fields=["arnd", "asin2"],  # specify the target fields for multivariate data
-            date_column="timestamp",  # specify the date column
-            multivariate=True
-        ),
-        TSCorpusBuilderConfig(
-            name="S&P500 Mean Correlation",
-            version=VERSION,
-            description="S&P500 Mean Correlation Time Series (1992-2012)",
-            url="https://zenodo.org/records/8167592/files/Financial_Time_Series_Centered_Interval.csv?download=1",
-            file_name="./tmp/Financial_Time_Series_Centered_Interval.csv",
-            target_fields=["Mean_Correlation"],  # specify the target fields for multivariate data
-            date_column="Centre_of_Interval",  # specify the date column
-            multivariate=False
+            name="UNIVARIATE",
+            version=datasets.Version(_VERSION),
+            description="Multiple univariate and multivariate datasets",
+            datasets_config=load_datasets_config()
         )
     ]
 
     def _info(self):
+        """Returns the dataset metadata."""
         return datasets.DatasetInfo(
             description=_DESCRIPTION,
             citation=_CITATION,
-            version=self.config.version
+            version=self.VERSION,
+            features=datasets.Features({
+                "dataset_name": datasets.Value("string"),
+                "date": datasets.Sequence(datasets.Value("string")),  # list of date strings
+                "value": datasets.Sequence(datasets.Sequence(datasets.Value("float32")))  # for multivariate data
+            })
         )
-    
+
     def _split_generators(self, dl_manager):
-        # Download the file
-        url = self.config.url
-        dest = Path(self.config.file_name)
-        dest.parent.mkdir(parents=True, exist_ok=True)
+        """Download all datasets and split them."""
+        downloaded_files = {}
+        for dataset_name, dataset_info in tqdm(self.config.datasets_config.items(), desc="Downloading datasets", unit="dataset"):
+            url = dataset_info["url"]
+            dest = Path(dataset_info["file_name"])
+            dest.parent.mkdir(parents=True, exist_ok=True)
 
-        response = requests.get(url)
-        response.raise_for_status()  # Ensure the request was successful
-        dest.write_bytes(response.content)
+            # Download the file
+            response = requests.get(url)
+            response.raise_for_status()  # Ensure the request was successful
+            dest.write_bytes(response.content)
+            downloaded_files[dataset_name] = dest
 
-        return [
-            datasets.SplitGenerator(
-                name=datasets.Split.TRAIN,
-                gen_kwargs={"filepath": str(dest)}
-            )
-        ]
+        return [datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": downloaded_files})]
 
-    def _generate_examples(self, filepath):
-        df = pd.read_csv(filepath)
-
-        # Extract date values
-        if self.config.date_column and self.config.date_column in df.columns:
-            df[self.config.date_column] = pd.to_datetime(df[self.config.date_column]).dt.strftime('%Y-%m-%d %H:%M:%S')
-            dates = df[self.config.date_column].tolist()
-        else:
-            raise ValueError(f"Specified date column '{self.config.date_column}' not found in the dataset.")
-        
-        # Extract values for target fields or data column
-        if self.config.multivariate or self.config.target_fields:
-            # Collect values for each target field separately
-            values = [df[field].tolist() for field in self.config.target_fields]
-        else:
-            # Handle univariate data
-            if self.config.data_column and self.config.data_column in df.columns:
-                values = [df[self.config.data_column].tolist()]  # Wrap in a list to keep it consistent
-            else:
-                raise ValueError(f"Specified data column '{self.config.data_column}' not found in the dataset.")
-
-        # Prepare the final dictionary
-        result = {
-            "date": dates,
-            "value": values  # List of lists for each feature
-        }
-
-        # Yield the result as requested
-        yield 0, result
-
-
-
-if __name__ == "__main__":
-    from datasets import load_dataset
-    # Load all datasets
-    for config in TSCorpus.BUILDER_CONFIGS:
-        dataset = load_dataset('ts_corpus_URL_multiple.py', name=config.name, trust_remote_code=True)
-        print(f"Dataset {config.name}:")
-        #print(dataset['train'][0])
-        df = pd.DataFrame(dataset['train'])
-        # Use to_string to print the entire DataFrame without truncation
-        print(df.to_string())
+    def _generate_examples(self, filepaths):
+        """Generate examples in the requested format."""
+        for dataset_name, filepath in filepaths.items():
+            dataset_info = self.config.datasets_config[dataset_name]
+    
+            try:
+                if Path(filepath).exists():
+                    df = pd.read_csv(filepath, on_bad_lines='skip')
+                else:
+                    print(f"File {filepath} does not exist.")
+                    continue
+    
+                # Process dates
+                if dataset_info["date_column"] in df.columns:
+                    df[dataset_info["date_column"]] = pd.to_datetime(df[dataset_info["date_column"]], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    dates = df[dataset_info["date_column"]].tolist()
+                else:
+                    raise ValueError(f"Specified date column '{dataset_info['date_column']}' not found in {dataset_name}.")
+    
+                # Process values for univariate and multivariate data
+                data_columns = dataset_info["data_column"]
+    
+                if isinstance(data_columns, list):  # Multivariate case
+                    # Create a list of lists, one list per column
+                    values = [
+                        df[col].dropna().astype(float).tolist() if col in df.columns else []
+                        for col in data_columns
+                    ]
+                else:  # Univariate case
+                    if data_columns in df.columns:
+                        # Single column as a list of values wrapped in another list
+                        values = [df[data_columns].dropna().astype(float).tolist()]
+                    else:
+                        raise ValueError(f"Specified data column '{data_columns}' not found in {dataset_name}.")
+    
+                # Ensure `dates` and `values` align
+                if len(dates) != len(values[0]):  # Only check the length of the first column
+                    print(f"Warning: Mismatch in dates and values length for {dataset_name}. Skipping this dataset.")
+                    continue
+    
+                # Yield the processed data for each dataset
+                yield dataset_name, {
+                    "dataset_name": dataset_name,
+                    "date": dates,
+                    "value": values  # List of lists: one per column
+                }
+    
+            except Exception as e:
+                print(f"Error processing {dataset_name} ({filepath}): {e}")
+                continue
