@@ -34,7 +34,8 @@ def load_datasets_config():
             "file_name": str(file_path),
             "date_column": row['date_column'].strip(),
             "data_column": data_columns,
-            "multivariate": multivariate
+            "multivariate": multivariate,
+            "domain": row['domain'].strip() 
         }
     return config_dict
 
@@ -116,6 +117,7 @@ class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
                     raise ValueError(f"Specified date column '{dataset_info['date_column']}' not found in the dataset.")
 
                 data_columns = dataset_info["data_column"]
+                domain = dataset_info["domain"]
                 values = []
 
                 if isinstance(data_columns, list):
@@ -134,7 +136,8 @@ class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
                 all_datasets.append({
                     "name": dataset_name,
                     "date": dates,
-                    "value": values  # Store values as a list of lists
+                    "value": values,  # Store values as a list of lists
+                    "domain": domain
                 })
 
             except Exception as e:
