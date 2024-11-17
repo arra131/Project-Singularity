@@ -28,7 +28,8 @@ def load_datasets_config():
             "file_name": row['file_name'].strip(),
             "date_column": row['date_column'].strip(),
             "data_column": data_columns,
-            "multivariate": multivariate
+            "multivariate": multivariate,
+            "domain": row['domain'].strip()
         }
 
     return config_dict
@@ -60,7 +61,8 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
             features=datasets.Features({
                 "dataset_name": datasets.Value("string"),
                 "date": datasets.Sequence(datasets.Value("string")),  # list of date strings
-                "value": datasets.Sequence(datasets.Sequence(datasets.Value("float32")))  # for multivariate data
+                "value": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),  # for multivariate data
+                "domain": datasets.Value("string")  # Add this to the features
             })
         )
 
@@ -119,12 +121,15 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
                 if len(dates) != len(values[0]):  # Only check the length of the first column
                     print(f"Warning: Mismatch in dates and values length for {dataset_name}. Skipping this dataset.")
                     continue
+
+                domain = dataset_info["domain"]  # include domain field in the output
     
                 # Yield the processed data for each dataset
                 yield dataset_name, {
                     "dataset_name": dataset_name,
                     "date": dates,
-                    "value": values  # List of lists: one per column
+                    "value": values,  # List of lists: one per column
+                    "domain": domain
                 }
     
             except Exception as e:
