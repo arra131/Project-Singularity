@@ -1,3 +1,5 @@
+# Import necessary dependencies
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Union, Any
@@ -8,10 +10,10 @@ from tqdm import tqdm
 from huggingface_hub import hf_hub_download
 
 _VERSION = "1.0.0"
-_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets"
-_CITATION = "Provide a suitable citation here"
+_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets from various web sources"
+_CITATION = "Provide a suitable citation here - Later"
 
-# Use the exact filename and specify `repo_type="dataset"`
+# Load the csv file from Hugging Face repo 
 def load_datasets_config():
     # Specify repo_type="dataset" to ensure it looks in the dataset repository
     csv_file_path = hf_hub_download(repo_id="ddrg/time-series-datasets", filename="config_datasets_URL.csv", repo_type="dataset")
@@ -34,7 +36,6 @@ def load_datasets_config():
 
     return config_dict
 
-
 @dataclass
 class TSCorpusBuilderConfig(datasets.BuilderConfig):
     datasets_config: Optional[Dict[str, Dict[str, Any]]] = None  # Dictionary to hold dataset information
@@ -53,7 +54,7 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
     ]
 
     def _info(self):
-        """Returns the dataset metadata."""
+        """Returns the dataset metadata"""
         return datasets.DatasetInfo(
             description=_DESCRIPTION,
             citation=_CITATION,
@@ -62,12 +63,12 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
                 "dataset_name": datasets.Value("string"),
                 "date": datasets.Sequence(datasets.Value("string")),  # list of date strings
                 "value": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),  # for multivariate data
-                "domain": datasets.Value("string")  # Add this to the features
+                "domain": datasets.Value("string")  
             })
         )
 
     def _split_generators(self, dl_manager):
-        """Download all datasets and split them."""
+        """Download all datasets and split them"""
         downloaded_files = {}
         for dataset_name, dataset_info in tqdm(self.config.datasets_config.items(), desc="Downloading datasets", unit="dataset"):
             url = dataset_info["url"]
@@ -83,7 +84,7 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
         return [datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": downloaded_files})]
 
     def _generate_examples(self, filepaths):
-        """Generate examples in the requested format."""
+        """Generate examples in the requested format"""
         for dataset_name, filepath in filepaths.items():
             dataset_info = self.config.datasets_config[dataset_name]
     
@@ -94,10 +95,10 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
                     print(f"File {filepath} does not exist.")
                     continue
     
-                # Process dates
+                # Process dates in a standard format
                 if dataset_info["date_column"] in df.columns:
                     df[dataset_info["date_column"]] = pd.to_datetime(df[dataset_info["date_column"]], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-                    dates = df[dataset_info["date_column"]].tolist()
+                    dates = df[dataset_info["date_column"]].tolist()    # Create a list of dates
                 else:
                     raise ValueError(f"Specified date column '{dataset_info['date_column']}' not found in {dataset_name}.")
     
@@ -118,18 +119,18 @@ class TSCorpus(datasets.GeneratorBasedBuilder):
                         raise ValueError(f"Specified data column '{data_columns}' not found in {dataset_name}.")
     
                 # Ensure `dates` and `values` align
-                if len(dates) != len(values[0]):  # Only check the length of the first column
+                if len(dates) != len(values[0]):  # only check the length of the first column
                     print(f"Warning: Mismatch in dates and values length for {dataset_name}. Skipping this dataset.")
                     continue
 
                 domain = dataset_info["domain"]  # include domain field in the output
     
                 # Yield the processed data for each dataset
-                yield dataset_name, {
-                    "dataset_name": dataset_name,
-                    "date": dates,
-                    "value": values,  # List of lists: one per column
-                    "domain": domain
+                yield dataset_name, {               
+                    "dataset_name": dataset_name,   # String
+                    "date": dates,                  # List
+                    "value": values,                # List of lists: one per column
+                    "domain": domain                # String
                 }
     
             except Exception as e:

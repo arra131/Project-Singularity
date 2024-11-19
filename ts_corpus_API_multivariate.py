@@ -1,3 +1,5 @@
+# Import necessary dependencies
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Any, List
@@ -8,8 +10,8 @@ from tqdm import tqdm
 from huggingface_hub import hf_hub_download
 
 _VERSION = "1.0.0"
-_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets"
-_CITATION = "Provide a suitable citation here"
+_DESCRIPTION = "Time Series Corpus containing multiple univariate and multivariate datasets from Kaggle"
+_CITATION = "Provide a suitable citation here - Later"
 
 # Define the base directory for dataset downloads
 BASE_DIR = Path("./KaggleData")
@@ -17,7 +19,7 @@ BASE_DIR.mkdir(parents=True, exist_ok=True)  # Ensure the base directory exists
 
 # Load dataset configuration from Hugging Face
 def load_datasets_config():
-    # Download the config_datasets.csv from the Hugging Face Hub
+    # Download the Csv from the Hugging Face repo
     csv_file_path = hf_hub_download(repo_id="ddrg/kaggle-time-series-datasets", filename="kaggle_data_config.csv", repo_type="dataset")
     config_df = pd.read_csv(csv_file_path, delimiter=';')
     config_dict = {}
@@ -26,8 +28,8 @@ def load_datasets_config():
         # Create the file path within the BASE_DIR
         file_path = BASE_DIR / Path(row['file_name']).name  # Ensure all files are saved to BASE_DIR
 
-        data_columns = [col.strip() for col in row['data_column'].split(',')] if ',' in row['data_column'] else row['data_column'].strip()
-        multivariate = str(row['multivariate']).strip().upper() == 'TRUE'
+        data_columns = [col.strip() for col in row['data_column'].split(',')] if ',' in row['data_column'] else row['data_column'].strip()  # Handle multivariate data columns by splitting on commas and stripping whitespace
+        multivariate = str(row['multivariate']).strip().upper() == 'TRUE' 
 
         config_dict[row['name'].strip()] = {
             "kaggle_dataset": row['kaggle_dataset'].strip(),
@@ -46,7 +48,7 @@ class TimeSeriesDatasetConfig(datasets.BuilderConfig):
 class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
     VERSION = datasets.Version(_VERSION)
 
-    # Load dataset configuration from the CSV file in the Hugging Face repository
+    # Use CSV configuration loaded from Hugging Face
     BUILDER_CONFIGS = [
         TimeSeriesDatasetConfig(
             name="UNIVARIATE",
@@ -71,7 +73,7 @@ class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
             dest = Path(dataset_info["file_name"])
             dest.parent.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
-            # Download the dataset using Kaggle API (without unzipping)
+            # Download the dataset using Kaggle API 
             kaggle_command = f"kaggle datasets download -d {dataset_info['kaggle_dataset']} -p {dest.parent} --force --unzip"
             try:
                 result = subprocess.run(kaggle_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -134,10 +136,10 @@ class TimeSeriesDataset(datasets.GeneratorBasedBuilder):
 
                 # Store the dataset information in the desired format
                 all_datasets.append({
-                    "name": dataset_name,
-                    "date": dates,
-                    "value": values,  # Store values as a list of lists
-                    "domain": domain
+                    "name": dataset_name,   # string
+                    "date": dates,          # list
+                    "value": values,        # list of lists
+                    "domain": domain        # string
                 })
 
             except Exception as e:
