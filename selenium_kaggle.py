@@ -1,13 +1,11 @@
-# Ready and working
-
-"""Selenium script to automate the collection of dataset names and URLs from Kaggle"""
+"""Selenium script to automate the collection of dataset names, URLs and Tags from Kaggle"""
 
 """
     1. Open kaggle website and navigate to datasets tab
     2. Filter the time series datasets
     3. Get names and URLs of all datasets
     4. Open every URL and get their tags
-    5. Save Names, URLs and tags (Metadata) in an excel file"""
+    5. Save Names, URLs and tags in an excel file"""
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -15,7 +13,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import time
@@ -29,7 +27,7 @@ options = Options()
 # Initialize the WebDriver
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-# Step 1: Open Kaggle and navigate to datasets
+# Step 1: Open Kaggle 
 driver.get("https://www.kaggle.com/")
 driver.maximize_window()
 time.sleep(5)
@@ -45,14 +43,13 @@ search_element.send_keys("time series")
 search_element.send_keys("\n")  # Press Enter
 time.sleep(5)
 
-# Step 4: Scrape dataset names, links, and tags (limit to 3 pages)
+# Step 4: Scrape dataset names, links, and tags 
 all_datasets = []
 page_counter = 0
 count = 0
-# while page_counter < 2:  # Limit to 1 page
-while page_counter<15:  # For all pages
+while True:  # For all pages
     # Find all dataset containers
-    dataset_containers = driver.find_elements(By.CSS_SELECTOR, "div.sc-kLJHhQ.ithYPd.km-listitem--large")
+    dataset_containers = driver.find_elements(By.CSS_SELECTOR, "div.sc-kLJHhQ.ffiFcO.km-listitem--large")
     for container in dataset_containers:
         try:
             name = container.find_element(By.CSS_SELECTOR, "div.sc-eauhAA.sc-fXwCOG").text
@@ -62,7 +59,8 @@ while page_counter<15:  # For all pages
             print(count, f"Dataset: {name} - {link}")
         except Exception as e:
             print(f"Error occurred while extracting dataset details: {e}")
-    page_counter += 1
+    # page_counter += 1
+
     # Move to the next page
     try:
         next_button_element = WebDriverWait(driver, 10).until(
@@ -103,10 +101,11 @@ df = pd.DataFrame(all_datasets)
 df['datasetID'] = df['Link'].str.replace('https://www.kaggle.com/datasets/', '', regex=False)
  
 # Step 7: Save the dataset metadata to an Excel file
-df.to_excel("kaggle_datasets_with_tags.xlsx", index=False, columns=["Name", "Link", "datasetID", "Tags"])
+df.to_excel("Kaggle_dataset_list.xlsx", index=False, columns=["Name", "Link", "datasetID", "Tags"])
 
 end_time = time.time()
 execution_time = end_time - start_time
 print(f"Execution Time: {execution_time:.2f} seconds")
 
-print("Scraping complete. Data saved to 'kaggle_datasets_with_tags.xlsx'.")
+print("Scraping complete. Data saved to 'Kaggle_dataset_list.xlsx'.")
+print("end")
