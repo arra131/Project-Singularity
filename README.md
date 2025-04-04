@@ -4,6 +4,8 @@ This project aims to create a comprehensive corpus of time-series datasets and p
 
 #### Repository Structure ####
 
-│── selenium_kaggle.py        # Selenium script to automate the scraping of dataset information from Kaggle
-│── selenium_uci.edu.py       #  Selenium script to automate the scraping of dataset information from uci.edu
+- selenium_kaggle.py        # Selenium script to automate the scraping of dataset information from Kaggle
+- selenium_uci.edu.py       # Selenium script to automate the scraping of dataset information from uci.edu
+- CSVgenerationAPI.py       # This scripts downloads Kaggle datasets, inspects them for metadata, and saves the metadata to a CSV file
+- CSVcleaning.py            # Cleans CSVs to remove all missining dates and replaces missing tags with 'unknown'
 
