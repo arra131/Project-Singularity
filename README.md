@@ -3,7 +3,8 @@
 This project aims to create a comprehensive corpus of time-series datasets and provide an easy-to-use interface on Hugging Face. The datasets are collected from Kaggle, preprocessed, and made accessible via Hugging Face's `datasets` library, enabling researchers and developers to load them effortlessly for machine learning and statistical analysis.
 
 ### Repository Structure ###
-
+- `requirement.txt`           # Dependencies required to download the corpus
+- `Kaggle_API_setup.md`       # Instructions to setup Kaggle API to download the datasets
 - `selenium_kaggle.py`        # Selenium script to automate the scraping of dataset information from Kaggle
 - `selenium_uci.edu.py`       # Selenium script to automate the scraping of dataset information from uci.edu
 - `CSVgenerationAPI.py`       # This scripts downloads Kaggle datasets, inspects them for metadata, and saves the metadata to a CSV file
