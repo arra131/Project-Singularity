@@ -9,6 +9,7 @@ This project aims to create a comprehensive corpus of time-series datasets and p
 - `CSVgenerationAPI.py`       # This scripts downloads Kaggle datasets, inspects them for metadata, and saves the metadata to a CSV file
 - `CSVcleaning.py`            # Cleans CSVs to remove all missining dates and replaces missing tags with 'unknown'
 - `DataLoader_Builder.py`     # Dataloader builder script to automate dataset retrieval, processing, and structuring of the downloaded datasets
+- `README.md`                 # Documentation file
 
 ### Respoitory Usage
 
