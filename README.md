@@ -4,5 +4,6 @@ This project aims to create a comprehensive corpus of time-series datasets and p
 
 #### Repository Structure ####
 
-│── selenium_kaggle.py
-│──selenium_uci.edu.py
+│── selenium_kaggle.py        # Selenium script to automate the scraping of dataset information from Kaggle
+│── selenium_uci.edu.py       #  Selenium script to automate the scraping of dataset information from uci.edu
+
